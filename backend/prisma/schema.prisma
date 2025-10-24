@@ -1,0 +1,130 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Patient {
+  id           String        @id @default(uuid())
+  phoneNumber  String        @unique
+  name         String
+  email        String?       @unique
+  dateOfBirth  DateTime?
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  appointments Appointment[]
+
+  @@index([phoneNumber])
+  @@index([email])
+  @@map("patients")
+}
+
+model Doctor {
+  id             String               @id @default(uuid())
+  name           String
+  specialization String
+  email          String               @unique
+  phoneNumber    String?              @unique
+  isActive       Boolean              @default(true)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  deletedAt      DateTime?            @map("deleted_at")
+  appointments   Appointment[]
+  availability   DoctorAvailability[]
+
+  @@index([email])
+  @@index([phoneNumber])
+  @@index([deletedAt])
+  @@map("doctors")
+}
+
+model DoctorAvailability {
+  id           String   @id @default(uuid())
+  doctorId     String
+  doctor       Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  dayOfWeek    Int
+  startTime    Int
+  endTime      Int
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([doctorId, dayOfWeek, startTime, endTime])
+  @@index([doctorId, dayOfWeek, isActive])
+  @@map("doctor_availability")
+}
+
+model Appointment {
+  id        String   @id @default(uuid())
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  doctorId  String
+  doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  dateTime  DateTime
+  duration  Int      @default(30)
+  reason    String
+  status    String   @default("scheduled")
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([doctorId, dateTime])
+  @@index([patientId, status])
+  @@index([doctorId, dateTime])
+  @@index([status])
+  @@map("appointments")
+}
+
+model CallLog {
+  id           String    @id @default(uuid())
+  callSid      String    @unique
+  phoneNumber  String
+  direction    String?
+  status       String
+  duration     Int?
+  recordingUrl String?
+  transcript   String?   @db.Text
+  startedAt    DateTime  @default(now())
+  endedAt      DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([callSid])
+  @@index([phoneNumber])
+  @@index([status])
+  @@index([startedAt])
+  @@map("call_logs")
+}
+
+model ConversationContext {
+  id          String   @id @default(uuid())
+  callSid     String   @unique
+  context     Json
+  step        String
+  lastMessage String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([callSid])
+  @@index([step])
+  @@map("conversation_contexts")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  entityType String
+  entityId   String
+  action     String
+  changes    Json
+  userId     String?
+  timestamp  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
